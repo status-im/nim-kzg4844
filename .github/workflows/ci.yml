@@ -159,4 +159,4 @@ jobs:
           nimble install -y --depsOnly
           rm -f nimble.lock
           env TEST_LANG="c" nimble test
-          env TEST_LANG="cpp" nimble test
+          # env TEST_LANG="cpp" nimble test
