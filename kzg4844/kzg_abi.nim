@@ -16,7 +16,8 @@ from os import DirSep
 const FIELD_ELEMENTS_PER_BLOB*{.strdefine.} = 4096
 
 const
-  ckzgPath = currentSourcePath.rsplit(DirSep, 1)[0] & "/csources/"
+  kzgPath  = currentSourcePath.rsplit(DirSep, 1)[0] & "/"
+  ckzgPath = kzgPath & "csources/"
   blstPath = ckzgPath & "blst/"
   srcPath  = ckzgPath & "src/"
   bindingsPath = blstPath & "bindings"
@@ -24,6 +25,9 @@ const
 when not defined(externalBlst):
   {.compile: blstPath & "build/assembly.S".}
   {.compile: blstPath & "src/server.c"}
+
+when defined(kzgExternalBlstNoSha256):
+  {.compile: kzgPath & "sha256.c"}
 
 {.compile: srcPath & "c_kzg_4844.c"}
 
