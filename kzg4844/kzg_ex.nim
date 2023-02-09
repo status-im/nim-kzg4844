@@ -41,9 +41,10 @@ template setupCtx(body: untyped): untyped =
   ok()
 
 template verifyCtx(body: untyped): untyped =
-  if gCtx.isNil:
-    return err(GlobalCtxErr)
-  body
+  {.gcsafe.}:
+    if gCtx.isNil:
+      return err(GlobalCtxErr)
+    body
 
 ##############################################################
 # Public functions
@@ -71,30 +72,30 @@ proc loadTrustedSetupFromString*(_: type Kzg,
     kzg.loadTrustedSetupFromString(input)
 
 proc toCommitment*(blob: KzgBlob):
-                    Result[KzgCommitment, string] =
+                    Result[KzgCommitment, string] {.gcsafe.} =
   verifyCtx:
     gCtx.toCommitment(blob)
 
 proc computeProof*(blobs: openArray[KzgBlob]):
-                     Result[KzgProof, string] =
+                     Result[KzgProof, string] {.gcsafe.} =
   verifyCtx:
     gCtx.computeProof(blobs)
 
 proc verifyProof*(blobs: openArray[KzgBlob],
                   commitments: openArray[KzgCommitment],
-                  proof: KzgProof): Result[void, string] =
+                  proof: KzgProof): Result[void, string] {.gcsafe.} =
   verifyCtx:
     gCtx.verifyProof(blobs, commitments, proof)
 
 proc computeProof*(blob: KzgBlob,
-                   z: Bytes32): Result[KzgProof, string] =
+                   z: Bytes32): Result[KzgProof, string] {.gcsafe.} =
   verifyCtx:
     gCtx.computeProof(blob, z)
 
 proc verifyProof*(commitment: KzgCommitment,
                   z: Bytes32, # Input Point
                   y: Bytes32, # Claimed Value
-                  proof: KzgProof): Result[void, string] =
+                  proof: KzgProof): Result[void, string] {.gcsafe.} =
   verifyCtx:
     gCtx.verifyProof(commitment, z, y, proof)
 

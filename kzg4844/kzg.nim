@@ -115,7 +115,7 @@ proc loadTrustedSetupFromString*(input: string): Result[KzgCtx, string] =
 
 proc toCommitment*(ctx: KzgCtx,
                    blob: KzgBlob):
-                     Result[KzgCommitment, string] =
+                     Result[KzgCommitment, string] {.gcsafe.} =
   var kate: KzgCommitment
   let res = blob_to_kzg_commitment(kate, blob, ctx.val)
   verify(res)
@@ -123,7 +123,7 @@ proc toCommitment*(ctx: KzgCtx,
 
 proc computeProof*(ctx: KzgCtx,
                    blobs: openArray[KzgBlob]):
-                     Result[KzgProof, string] =
+                     Result[KzgProof, string] {.gcsafe.} =
   var proof: KzgProof
   let res = compute_aggregate_kzg_proof(
     proof,
@@ -136,7 +136,7 @@ proc computeProof*(ctx: KzgCtx,
 proc verifyProof*(ctx: KzgCtx,
                   blobs: openArray[KzgBlob],
                   commitments: openArray[KzgCommitment],
-                  proof: KzgProof): Result[void, string] =
+                  proof: KzgProof): Result[void, string] {.gcsafe.} =
 
   if blobs.len == 0 or commitments.len == 0:
     return err($KZG_BADARGS)
@@ -159,7 +159,7 @@ proc verifyProof*(ctx: KzgCtx,
 
 proc computeProof*(ctx: KzgCtx,
                    blob: KzgBlob,
-                   z: Bytes32): Result[KzgProof, string] =
+                   z: Bytes32): Result[KzgProof, string] {.gcsafe.} =
   var proof: KzgProof
   let res = compute_kzg_proof(
     proof,
@@ -173,7 +173,7 @@ proc verifyProof*(ctx: KzgCtx,
                   commitment: KzgCommitment,
                   z: Bytes32, # Input Point
                   y: Bytes32, # Claimed Value
-                  proof: KzgProof): Result[void, string] =
+                  proof: KzgProof): Result[void, string] {.gcsafe.} =
   var ok: bool
   let res = verify_kzg_proof(
     ok,
