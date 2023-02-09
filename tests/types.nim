@@ -27,3 +27,4 @@ const
   inputPoint* = hexToByteArray[32]("AD5570F5A3810B7AF9D4B24BC1C2EA670245DB2EAA49AAE654B8F7393A9A6214")
   claimedValue* = hexToByteArray[32]("17F10B3E7BFC7894E4150626380E226D7B1D0085550067787F259A7F55BB5D36")
   nblobs* = 5
+  trustedSetup* = staticRead("../" & trustedSetupFile)
