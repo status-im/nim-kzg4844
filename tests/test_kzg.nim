@@ -10,7 +10,6 @@
 {.used.}
 
 import
-  std/[sysrand],
   unittest2,
   ../kzg4844/kzg,
   ./types

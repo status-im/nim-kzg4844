@@ -28,3 +28,15 @@ const
   claimedValue* = hexToByteArray[32]("17F10B3E7BFC7894E4150626380E226D7B1D0085550067787F259A7F55BB5D36")
   nblobs* = 5
   trustedSetup* = staticRead("../" & trustedSetupFile)
+
+when (NimMajor, NimMinor) > (1, 4):
+  import std/sysrand
+  export sysrand.urandom
+else:
+  import std/random
+
+  proc urandom*(x: var openArray[byte]): bool =
+    randomize()
+    for i in 0 ..< x.len:
+      x[i] = byte.rand()
+    true

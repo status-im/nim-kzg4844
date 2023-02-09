@@ -10,7 +10,7 @@
 {.used.}
 
 import
-  std/[sysrand, streams, strutils],
+  std/[streams, strutils],
   unittest2,
   stew/byteutils,
   ../kzg4844/kzg_abi,
