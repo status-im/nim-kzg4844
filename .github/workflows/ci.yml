@@ -158,7 +158,9 @@ jobs:
           nimble --version
           nimble install -y --depsOnly
           # yaml is a test suite dependancy
-          nimble install -y yaml
+          if [[ "${{ matrix.branch }}" != "version-1-2" ]]; then
+            nimble install -y yaml
+          fi
           rm -f nimble.lock
           env TEST_LANG="c" nimble test
           # env TEST_LANG="cpp" nimble test
