@@ -89,19 +89,19 @@ proc computeProof*(blob: KzgBlob):
 proc verifyProof*(commitment: KzgCommitment,
                   z: Bytes32, # Input Point
                   y: Bytes32, # Claimed Value
-                  proof: KzgProof): Result[void, string] {.gcsafe.} =
+                  proof: KzgProof): Result[bool, string] {.gcsafe.} =
   verifyCtx:
     gCtx.verifyProof(commitment, z, y, proof)
 
 proc verifyProof*(blob: KzgBlob,
                   commitment: KzgCommitment,
-                  proof: KzgProof): Result[void, string] {.gcsafe.} =
+                  proof: KzgProof): Result[bool, string] {.gcsafe.} =
   verifyCtx:
     gCtx.verifyProof(blob, commitment, proof)
 
 proc verifyProofs*(blobs: openArray[KzgBlob],
                   commitments: openArray[KzgCommitment],
-                  proofs: openArray[KzgProof]): Result[void, string] {.gcsafe.} =
+                  proofs: openArray[KzgProof]): Result[bool, string] {.gcsafe.} =
   verifyCtx:
     gCtx.verifyProofs(blobs, commitments, proofs)
 

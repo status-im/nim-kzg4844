@@ -149,62 +149,54 @@ proc verifyProof*(ctx: KzgCtx,
                   commitment: KzgCommitment,
                   z: Bytes32, # Input Point
                   y: Bytes32, # Claimed Value
-                  proof: KzgProof): Result[void, string] {.gcsafe.} =
-  var ok: bool
+                  proof: KzgProof): Result[bool, string] {.gcsafe.} =
+  var valid: bool
   let res = verify_kzg_proof(
-    ok,
+    valid,
     commitment,
     z,
     y,
     proof,
     ctx.val)
   verify(res)
-  if not ok:
-    return err($KZG_ERROR)
-  ok()
+  ok(valid)
 
 proc verifyProof*(ctx: KzgCtx,
                   blob: KzgBlob,
                   commitment: KzgCommitment,
-                  proof: KzgProof): Result[void, string] {.gcsafe.} =
-  var ok: bool
+                  proof: KzgProof): Result[bool, string] {.gcsafe.} =
+  var valid: bool
   let res = verify_blob_kzg_proof(
-    ok,
+    valid,
     blob,
     commitment,
     proof,
     ctx.val)
   verify(res)
-  if not ok:
-    return err($KZG_ERROR)
-  ok()
+  ok(valid)
 
 proc verifyProofs*(ctx: KzgCtx,
                   blobs: openArray[KzgBlob],
                   commitments: openArray[KzgCommitment],
-                  proofs: openArray[KzgProof]): Result[void, string] {.gcsafe.} =
-  if blobs.len == 0 or
-      commitments.len == 0 or
-      proofs.len == 0:
-    return err($KZG_BADARGS)
-
+                  proofs: openArray[KzgProof]): Result[bool, string] {.gcsafe.} =
   if blobs.len != commitments.len:
     return err($KZG_BADARGS)
 
   if blobs.len != proofs.len:
     return err($KZG_BADARGS)
 
-  var ok: bool
+  if blobs.len == 0:
+    return ok(true)
+    
+  var valid: bool
   let res = verify_blob_kzg_proof_batch(
-    ok,
+    valid,
     blobs[0].getPtr,
     commitments[0].getPtr,
     proofs[0].getPtr,
     blobs.len.csize_t,
     ctx.val)
   verify(res)
-  if not ok:
-    return err($KZG_ERROR)
-  ok()
+  ok(valid)
 
 {. pop .}

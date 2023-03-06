@@ -47,6 +47,7 @@ suite "verify proof (high-level)":
 
     let res = ctx.verifyProofs(kb.blobs, kb.kates, kp)
     check res.isOk
+    check res.get == true
 
   test "verify batch proof failure":
     let kb = ctx.createKateBlobs(nblobs)
@@ -64,7 +65,8 @@ suite "verify proof (high-level)":
       badProofs[i] = pres.get
 
     let res = ctx.verifyProofs(kb.blobs, kb.kates, badProofs)
-    check res.isErr
+    check res.isOk
+    check res.get == false
 
   test "verify blob proof":
     let kp = ctx.computeProof(blob)

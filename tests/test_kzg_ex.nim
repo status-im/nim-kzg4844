@@ -44,6 +44,7 @@ suite "verify proof (extended version)":
 
     let res = verifyProofs(kb.blobs, kb.kates, kp)
     check res.isOk
+    check res.get == true
 
   test "verify batch proof failure":
     let kb = createKateBlobs(nblobs)
@@ -61,7 +62,8 @@ suite "verify proof (extended version)":
       badProofs[i] = pres.get
 
     let res = verifyProofs(kb.blobs, kb.kates, badProofs)
-    check res.isErr
+    check res.isOk
+    check res.get == false
 
   test "verify blob proof":
     let kp = computeProof(blob)

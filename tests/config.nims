@@ -1,2 +1,3 @@
 --styleCheck:usages
---styleCheck:error
+# nimyaml style will error
+--styleCheck:hint
