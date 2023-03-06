@@ -34,24 +34,41 @@ suite "verify proof (extended version)":
     let res = Kzg.loadTrustedSetupFromString(trustedSetup)
     check res.isOk
 
-  test "verify proof success":
+  test "verify batch proof success":
     let kb = createKateBlobs(nblobs)
-    let pres = computeProof(kb.blobs)
-    check pres.isOk
-    let res = verifyProof(kb.blobs, kb.kates, pres.get)
+    var kp: array[nblobs, KzgProof]
+    for i in 0..<nblobs:
+      let pres = computeProof(kb.blobs[i])
+      check pres.isOk
+      kp[i] = pres.get
+
+    let res = verifyProofs(kb.blobs, kb.kates, kp)
     check res.isOk
 
-  test "verify proof failure":
+  test "verify batch proof failure":
     let kb = createKateBlobs(nblobs)
-    let pres = computeProof(kb.blobs)
-    check pres.isOk
+    var kp: array[nblobs, KzgProof]
+    for i in 0..<nblobs:
+      let pres = computeProof(kb.blobs[i])
+      check pres.isOk
+      kp[i] = pres.get
 
     let other = createKateBlobs(nblobs)
-    let badProof = computeProof(other.blobs)
-    check badProof.isOk
+    var badProofs: array[nblobs, KzgProof]
+    for i in 0..<nblobs:
+      let pres = computeProof(other.blobs[i])
+      check pres.isOk
+      badProofs[i] = pres.get
 
-    let res = verifyProof(kb.blobs, kb.kates, badProof.get)
+    let res = verifyProofs(kb.blobs, kb.kates, badProofs)
     check res.isErr
+
+  test "verify blob proof":
+    let kp = computeProof(blob)
+    check kp.isOk
+
+    let res = verifyProof(blob, commitment, kp.get)
+    check res.isOk
 
   test "verify proof":
     let kp = computeProof(blob, inputPoint)

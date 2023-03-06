@@ -37,24 +37,41 @@ suite "verify proof (high-level)":
     check res.isOk
     ctx = res.get
 
-  test "verify proof success":
+  test "verify batch proof success":
     let kb = ctx.createKateBlobs(nblobs)
-    let pres = ctx.computeProof(kb.blobs)
-    check pres.isOk
-    let res = ctx.verifyProof(kb.blobs, kb.kates, pres.get)
+    var kp: array[nblobs, KzgProof]
+    for i in 0..<nblobs:
+      let pres = ctx.computeProof(kb.blobs[i])
+      check pres.isOk
+      kp[i] = pres.get
+
+    let res = ctx.verifyProofs(kb.blobs, kb.kates, kp)
     check res.isOk
 
-  test "verify proof failure":
+  test "verify batch proof failure":
     let kb = ctx.createKateBlobs(nblobs)
-    let pres = ctx.computeProof(kb.blobs)
-    check pres.isOk
+    var kp: array[nblobs, KzgProof]
+    for i in 0..<nblobs:
+      let pres = ctx.computeProof(kb.blobs[i])
+      check pres.isOk
+      kp[i] = pres.get
 
     let other = ctx.createKateBlobs(nblobs)
-    let badProof = ctx.computeProof(other.blobs)
-    check badProof.isOk
+    var badProofs: array[nblobs, KzgProof]
+    for i in 0..<nblobs:
+      let pres = ctx.computeProof(other.blobs[i])
+      check pres.isOk
+      badProofs[i] = pres.get
 
-    let res = ctx.verifyProof(kb.blobs, kb.kates, badProof.get)
+    let res = ctx.verifyProofs(kb.blobs, kb.kates, badProofs)
     check res.isErr
+
+  test "verify blob proof":
+    let kp = ctx.computeProof(blob)
+    check kp.isOk
+
+    let res = ctx.verifyProof(blob, commitment, kp.get)
+    check res.isOk
 
   test "verify proof":
     let kp = ctx.computeProof(blob, inputPoint)

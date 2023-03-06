@@ -34,10 +34,12 @@ else:
 # Private helpers
 ##############################################################
 
-proc destroy(x: KzgCtx) =
+proc destroy*(x: KzgCtx) =
   free_trusted_setup(x.val)
 
 proc newKzgCtx(): KzgCtx =
+  # Nim finalizer is still broken(v1.6)
+  # consider to call destroy directly
   new(result, destroy)
 
 template getPtr(x: untyped): auto =
@@ -122,42 +124,6 @@ proc toCommitment*(ctx: KzgCtx,
   ok(kate)
 
 proc computeProof*(ctx: KzgCtx,
-                   blobs: openArray[KzgBlob]):
-                     Result[KzgProof, string] {.gcsafe.} =
-  var proof: KzgProof
-  let res = compute_aggregate_kzg_proof(
-    proof,
-    blobs[0].getPtr,
-    blobs.len.csize_t,
-    ctx.val)
-  verify(res)
-  ok(proof)
-
-proc verifyProof*(ctx: KzgCtx,
-                  blobs: openArray[KzgBlob],
-                  commitments: openArray[KzgCommitment],
-                  proof: KzgProof): Result[void, string] {.gcsafe.} =
-
-  if blobs.len == 0 or commitments.len == 0:
-    return err($KZG_BADARGS)
-
-  if blobs.len != commitments.len:
-    return err($KZG_BADARGS)
-
-  var ok: bool
-  let res = verify_aggregate_kzg_proof(
-    ok,
-    blobs[0].getPtr,
-    commitments[0].getPtr,
-    blobs.len.csize_t,
-    proof,
-    ctx.val)
-  verify(res)
-  if not ok:
-    return err($KZG_ERROR)
-  ok()
-
-proc computeProof*(ctx: KzgCtx,
                    blob: KzgBlob,
                    z: Bytes32): Result[KzgProof, string] {.gcsafe.} =
   var proof: KzgProof
@@ -165,6 +131,16 @@ proc computeProof*(ctx: KzgCtx,
     proof,
     blob,
     z,
+    ctx.val)
+  verify(res)
+  ok(proof)
+
+proc computeProof*(ctx: KzgCtx,
+                   blob: KzgBlob): Result[KzgProof, string] {.gcsafe.} =
+  var proof: KzgProof
+  let res = compute_blob_kzg_proof(
+    proof,
+    blob,
     ctx.val)
   verify(res)
   ok(proof)
@@ -181,6 +157,50 @@ proc verifyProof*(ctx: KzgCtx,
     z,
     y,
     proof,
+    ctx.val)
+  verify(res)
+  if not ok:
+    return err($KZG_ERROR)
+  ok()
+
+proc verifyProof*(ctx: KzgCtx,
+                  blob: KzgBlob,
+                  commitment: KzgCommitment,
+                  proof: KzgProof): Result[void, string] {.gcsafe.} =
+  var ok: bool
+  let res = verify_blob_kzg_proof(
+    ok,
+    blob,
+    commitment,
+    proof,
+    ctx.val)
+  verify(res)
+  if not ok:
+    return err($KZG_ERROR)
+  ok()
+
+proc verifyProofs*(ctx: KzgCtx,
+                  blobs: openArray[KzgBlob],
+                  commitments: openArray[KzgCommitment],
+                  proofs: openArray[KzgProof]): Result[void, string] {.gcsafe.} =
+  if blobs.len == 0 or
+      commitments.len == 0 or
+      proofs.len == 0:
+    return err($KZG_BADARGS)
+
+  if blobs.len != commitments.len:
+    return err($KZG_BADARGS)
+
+  if blobs.len != proofs.len:
+    return err($KZG_BADARGS)
+
+  var ok: bool
+  let res = verify_blob_kzg_proof_batch(
+    ok,
+    blobs[0].getPtr,
+    commitments[0].getPtr,
+    proofs[0].getPtr,
+    blobs.len.csize_t,
     ctx.val)
   verify(res)
   if not ok:

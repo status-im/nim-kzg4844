@@ -73,36 +73,58 @@ suite "verify proof (abi)":
   let
     settings = readSetup(trustedSetupFile)
 
-  test "verify agg proof success":
+  test "verify batch proof success":
     var kb = kzgs.createKateBlobs(nblobs)
-    var kp: KzgProof
-    var res = compute_aggregate_kzg_proof(kp, kb.blobs[0].addr,
-      csize_t(nblobs), kzgs)
-    check res == KZG_OK
+    var kp: array[nblobs, KzgProof]
+
+    for i in 0..<nblobs:
+      let res = compute_blob_kzg_proof(kp[i], kb.blobs[i], kzgs)
+      check res == KZG_OK
 
     var ok: bool
-    res = verify_aggregate_kzg_proof(ok, kb.blobs[0].addr,
-      kb.kates[0].addr, csize_t(nblobs), kp, kzgs)
+    let res = verify_blob_kzg_proof_batch(ok,
+                         kb.blobs[0].addr,
+                         kb.kates[0].addr,
+                         kp[0].addr,
+                         csize_t(nblobs),
+                         kzgs)
     check res == KZG_OK
     check ok
 
-  test "verify agg proof failure":
+
+  test "verify batch proof failure":
     var kb = kzgs.createKateBlobs(nblobs)
-    var kp: KzgProof
-    var res = compute_aggregate_kzg_proof(kp, kb.blobs[0].addr,
-      csize_t(nblobs), kzgs)
-    check res == KZG_OK
+    var kp: array[nblobs, KzgProof]
+
+    for i in 0..<nblobs:
+      let res = compute_blob_kzg_proof(kp[i], kb.blobs[i], kzgs)
+      check res == KZG_OK
 
     var other = kzgs.createKateBlobs(nblobs)
-    res = compute_aggregate_kzg_proof(kp, other.blobs[0].addr,
-      csize_t(nblobs), kzgs)
+    for i in 0..<nblobs:
+      let res = compute_blob_kzg_proof(kp[i], other.blobs[i], kzgs)
+      check res == KZG_OK
+
+    var ok: bool
+    let res = verify_blob_kzg_proof_batch(ok,
+                         kb.blobs[0].addr,
+                         kb.kates[0].addr,
+                         kp[0].addr,
+                         csize_t(nblobs),
+                         kzgs)
+    check res == KZG_OK
+    check ok == false
+
+
+  test "verify blob proof":
+    var kp: KzgProof
+    var res = compute_blob_kzg_proof(kp, blob, kzgs)
     check res == KZG_OK
 
     var ok: bool
-    res = verify_aggregate_kzg_proof(ok, kb.blobs[0].addr,
-      kb.kates[0].addr, csize_t(nblobs), kp, kzgs)
+    res = verify_blob_kzg_proof(ok, blob, commitment, kp, kzgs)
     check res == KZG_OK
-    check ok == false
+    check ok
 
   test "verify proof":
     var kp: KzgProof
@@ -116,3 +138,4 @@ suite "verify proof (abi)":
     check ok
 
   free_trusted_setup(settings)
+
