@@ -7,14 +7,12 @@
 # This file may not be copied, modified, or distributed except according to
 # those terms.
 
-import
-  test_abi,
-  test_kzg,
-  test_kzg_ex
+{.warning[UnusedImport]:off.}
 
-when (NimMajor, NimMinor) >= (1, 4) and 
-     (NimMajor, NimMinor) <= (1, 6):
-  # nim devel causes shallowCopy error
-  # on yaml
-  import
-    test_yaml
+import
+  ../kzg4844/kzg,
+  ../kzg4844/kzg_ex,
+  ../kzg4844/kzg_abi
+
+# do nothing else, all tests are done in c-kzg-4844.
+# we only need to make sure our imports are compileable
