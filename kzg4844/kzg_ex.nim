@@ -7,8 +7,11 @@
 # This file may not be copied, modified, or distributed except according to
 # those terms.
 
+{. warning[UnusedImport]:off .}
+
 import
-  ./csources/bindings/nim/kzg_ex
+  ./csources/bindings/nim/kzg_ex,
+  ./kzg_abi # compile sha256.c
 
 export
   kzg_ex
