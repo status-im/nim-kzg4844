@@ -1,3 +1,3 @@
 [submodule "kzg4844/csources"]
 	path = kzg4844/csources
-	url = https://github.com/status-im/c-kzg-4844
+	url = https://github.com/ethereum/c-kzg-4844
