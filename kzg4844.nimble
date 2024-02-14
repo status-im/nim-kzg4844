@@ -1,5 +1,5 @@
 # nim-kzg4844
-# Copyright (c) 2023 Status Research & Development GmbH
+# Copyright (c) 2023-2024 Status Research & Development GmbH
 # Licensed under either of
 #  * Apache License, version 2.0, ([LICENSE-APACHE](LICENSE-APACHE))
 #  * MIT license ([LICENSE-MIT](LICENSE-MIT))
@@ -30,3 +30,5 @@ proc test(args, path: string) =
 
 task test, "Run all tests":
   test "-d:release -d:kzgExternalBlstNoSha256 -d:kzgExternalBlst", "tests/test_all"
+  if (NimMajor, NimMinor) > (1, 6):
+    test "-d:release -d:kzgExternalBlstNoSha256 -d:kzgExternalBlst --mm:refc", "tests/test_all"
