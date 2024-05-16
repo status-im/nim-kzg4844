@@ -1,3 +1,5 @@
 [submodule "kzg4844/csources"]
 	path = kzg4844/csources
 	url = https://github.com/ethereum/c-kzg-4844
+	ignore = untracked
+	branch = das
