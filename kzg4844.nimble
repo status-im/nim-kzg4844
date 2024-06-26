@@ -21,7 +21,7 @@ requires "stew >= 0.1.0"
 requires "unittest2"
 
 let cfg =
-  " --outdir:build -f -c --hints:off --warnings:off" &
+  " --outdir:build -f -c --hints:off" &
   " --styleCheck:usages --styleCheck:error --skipParentCfg" &
   " -d:release -d:kzgExternalBlstNoSha256 -d:kzgExternalBlst"
 
