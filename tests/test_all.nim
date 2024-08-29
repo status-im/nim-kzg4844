@@ -11,7 +11,6 @@
 
 import
   ../kzg4844/kzg,
-  ../kzg4844/kzg_ex,
   ../kzg4844/kzg_abi
 
 # do nothing else, all tests are done in c-kzg-4844.
