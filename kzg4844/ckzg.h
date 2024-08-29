@@ -45,7 +45,7 @@
 
 #define blst_miller_loop_n blst_miller_loop_n_replaced
 
-#include "./csources/src/c_kzg_4844.h"
+#include "./csources/src/ckzg.h"
 
 #undef blst_p1s_to_affine
 #undef blst_p1s_add
