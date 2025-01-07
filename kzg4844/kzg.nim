@@ -18,4 +18,4 @@ import
   ./kzg_abi # compile sha256.c
 
 export
-  kzg
+  kzg, kzg_abi.trustedSetup

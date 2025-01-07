@@ -9,17 +9,17 @@
 
 # Ensure "c_kzg_4844.h" in this directory takes precedence
 import std/[os, strutils]
-{.passc: "-I" & quoteShell(currentSourcePath.rsplit({DirSep, AltSep}, 1)[0]).}
 
-import
-  ./csources/bindings/nim/kzg_abi
+const
+  currentDir = currentSourcePath.rsplit({DirSep, AltSep}, 1)[0]
+  trustedSetup* =
+    staticRead(currentDir & "/csources/src/trusted_setup.txt")
 
-export
-  kzg_abi
+{.passc: "-I" & quoteShell(currentDir).}
+
+import ./csources/bindings/nim/kzg_abi
+
+export kzg_abi
 
 when defined(kzgExternalBlstNoSha256):
-  import std/strutils
-  from os import DirSep
-  const
-    kzgPath  = currentSourcePath.rsplit(DirSep, 1)[0] & "/"
-  {.compile: kzgPath & "sha256.c"}
+  {.compile: currentDir & "/sha256.c".}
