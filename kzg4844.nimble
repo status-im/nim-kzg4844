@@ -1,5 +1,5 @@
 # nim-kzg4844
-# Copyright (c) 2023-2024 Status Research & Development GmbH
+# Copyright (c) 2023-2025 Status Research & Development GmbH
 # Licensed under either of
 #  * Apache License, version 2.0, ([LICENSE-APACHE](LICENSE-APACHE))
 #  * MIT license ([LICENSE-MIT](LICENSE-MIT))
@@ -21,7 +21,7 @@ requires "stew >= 0.1.0"
 requires "unittest2"
 
 let cfg =
-  " --outdir:build -f -c --hints:off" &
+  " --outdir:build -f -c --verbosity:0" &
   " --styleCheck:usages --styleCheck:error --skipParentCfg" &
   " -d:release -d:kzgExternalBlstNoSha256 -d:kzgExternalBlst"
 
