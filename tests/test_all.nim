@@ -12,11 +12,12 @@
 import
   unittest2,
   ../kzg4844/kzg,
-  ../kzg4844/kzg_abi
+  ../kzg4844/kzg_abi,
+  ../kzg4844/lazy_kzg
 
 # do nothing else, all tests are done in c-kzg-4844.
 # we only need to make sure our imports are compileable
 
 test "Check that trusted setup can be loaded":
   check:
-    loadTrustedSetupFromString(trustedSetup, 0) == Result[void, string].ok()
+    kzg.loadTrustedSetupFromString(trustedSetup, 0) == Result[void, string].ok()
