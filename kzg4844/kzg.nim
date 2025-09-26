@@ -61,10 +61,7 @@ gCtx.settings = nil
 ##############################################################
 
 template getPtr(x: untyped): auto =
-  when (NimMajor, NimMinor) <= (1,6):
-    unsafeAddr(x)
-  else:
-    addr(x)
+  addr(x)
 
 template verify(res: KZG_RET, ret: untyped): untyped =
   if res != KZG_OK:
@@ -176,11 +173,7 @@ proc loadTrustedSetupFromString*(input: string, precompute: Natural): Result[voi
   loadTrustedSetup(ts.g1MonomialBytes, ts.g1LagrangeBytes, ts.g2MonomialBytes, precompute)
 
 proc lazyLoadTrustedSetup(): Result[void, string] =
-  when (NimMajor, NimMinor) <= (1,6):
-    # Error: unhandled exception: field 'node' is not accessible for type 'TFullReg' using 'kind = rkInt' [FieldDefect]
-    let ts = parseTrustedSetup(kzg_abi.trustedSetup).expect("parseTrustedSetup no error")
-  else:
-    const ts = parseTrustedSetup(kzg_abi.trustedSetup).expect("parseTrustedSetup no error")
+  const ts = parseTrustedSetup(kzg_abi.trustedSetup).expect("parseTrustedSetup no error")
   loadTrustedSetup(ts.g1MonomialBytes, ts.g1LagrangeBytes, ts.g2MonomialBytes, 0)
 
 proc freeTrustedSetup*(): Result[void, string] =
