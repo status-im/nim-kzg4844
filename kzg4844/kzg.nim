@@ -27,7 +27,8 @@ export
   kzg_abi.KzgBytes48,
   kzg_abi.KzgCell,
   kzg_abi.KzgCommitment,
-  kzg_abi.KzgProof
+  kzg_abi.KzgProof,
+  kzg_abi.trustedSetup
 
 const
   TrustedSetupNotLoadedErr = "Trusted setup is not loaded."
