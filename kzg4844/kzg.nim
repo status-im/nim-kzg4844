@@ -269,15 +269,17 @@ proc verifyBlobKzgProofBatch*(blobs: openArray[KzgBlob],
     gCtx.settings)
   verify(res, valid)
 
-proc computeCells*(blob: KzgBlob): Result[KzgCell, string] =
+proc computeCells*(blob: KzgBlob): Result[KzgCells, string] =
   if not gCtx.initialized:
     ?lazyLoadTrustedSetup()
-  var cell: KzgCell
-  let res = compute_cells(
-    cell.getPtr,
+  var ret: KzgCells
+  var cellsPtr: ptr KzgCell = ret[0].getPtr
+  let res = compute_cells_and_kzg_proofs(
+    cellsPtr,
+    nil,
     blob.getPtr,
     gCtx.settings)
-  verify(res, cell)
+  verify(res, ret)
 
 proc computeCellsAndKzgProofs*(blob: KzgBlob): Result[KzgCellsAndKzgProofs, string] =
   if not gCtx.initialized:
