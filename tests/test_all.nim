@@ -19,4 +19,4 @@ import
 
 test "Check that trusted setup can be loaded":
   check:
-    loadTrustedSetupFromString(trustedSetup, 0) == Result[void, string].ok()
+    kzg.loadTrustedSetupFromString(trustedSetup, 0) == Result[void, string].ok()
