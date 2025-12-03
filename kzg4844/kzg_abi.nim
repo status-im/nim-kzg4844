@@ -15,7 +15,7 @@ const
   trustedSetup* =
     staticRead(currentDir & "/csources/src/trusted_setup.txt")
 
-{.passc: "-I" & quoteShell(currentDir).}
+{.passc: "-I\"" & currentDir & "\"".}
 
 import ./csources/bindings/nim/kzg_abi
 
