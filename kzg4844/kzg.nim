@@ -15,7 +15,7 @@
 {.push gcsafe, raises: [].}
 
 import
-  std/[streams, strutils],
+  std/[strutils],
   stew/[assign2, byteutils],
   results,
   ./kzg_abi
@@ -132,38 +132,41 @@ type
 
 proc parseTrustedSetup(input: string): Result[TrustedSetup, string] =
   var
-    s = newStringStream(input)
+    s = splitLines(input)
     ts: TrustedSetup
+    pos = 0
+
+  template nextLine(): string =
+    if pos >= s.len:
+      return err("Trusted setup incomplete")
+    pos += 1
+    s[pos - 1]
 
   try:
-    let numG1 = s.readLine().parseInt()
+    let numG1 = nextLine().parseInt()
     if numG1 != NumG1:
       return err("invalid number of G1 points, expect $1, got $2" % [
         $NumG1, $numG1
       ])
-    let numG2 = s.readLine().parseInt()
+    let numG2 = nextLine().parseInt()
     if numG2 != NumG2:
       return err("invalid number of G2 points, expect $1, got $2" % [
         $NumG2, $numG2
       ])
 
     for i in 0 ..< NumG1:
-      let p = hexToByteArray[G1Len](s.readLine())
+      let p = hexToByteArray[G1Len](nextLine())
       assign(ts.g1LagrangeBytes.toOpenArray(i * G1Len, ((i + 1) * G1Len) - 1), p)
 
     for i in 0 ..< NumG2:
-      let p = hexToByteArray[G2Len](s.readLine())
+      let p = hexToByteArray[G2Len](nextLine())
       assign(ts.g2MonomialBytes.toOpenArray(i * G2Len, ((i + 1) * G2Len) - 1), p)
 
     for i in 0 ..< NumG1:
-      let p = hexToByteArray[G1Len](s.readLine())
+      let p = hexToByteArray[G1Len](nextLine())
       assign(ts.g1MonomialBytes.toOpenArray(i * G1Len, ((i + 1) * G1Len) - 1), p)
 
   except ValueError as ex:
-    return err(ex.msg)
-  except OSError as ex:
-    return err(ex.msg)
-  except IOError as ex:
     return err(ex.msg)
 
   ok(ts)
