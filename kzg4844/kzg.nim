@@ -68,6 +68,18 @@ template verify(res: KZG_RET, ret: untyped): untyped =
     return err($res)
   ok(ret)
 
+template runtimeAlloc(size: auto): auto =
+  when compileOption("threads"):
+    allocShared0(size)
+  else:
+    alloc0(size)
+
+template runtimeDealloc(ptrObj: auto) =
+  when compileOption("threads"):
+    deallocShared(ptrObj)
+  else:
+    dealloc(ptrObj)
+
 ##############################################################
 # Public functions
 ##############################################################
@@ -75,10 +87,10 @@ template verify(res: KZG_RET, ret: untyped): untyped =
 proc loadTrustedSetup*(input: File, precompute: Natural): Result[void, string] =
   if gCtx.initialized:
     return err(TrustedSetupAlreadyLoadedErr)
-  gCtx.settings = cast[ptr KzgSettings](alloc0(sizeof(KzgSettings)))
+  gCtx.settings = cast[ptr KzgSettings](runtimeAlloc(sizeof(KzgSettings)))
   let res = load_trusted_setup_file(gCtx.settings, input, precompute.uint64)
   if res != KZG_OK:
-    dealloc(gCtx.settings)
+    runtimeDealloc(gCtx.settings)
     gCtx.settings = nil
     return err($res)
   gCtx.initialized = true
@@ -102,7 +114,7 @@ proc loadTrustedSetup*(g1MonomialBytes: openArray[byte],
   if g1MonomialBytes.len == 0 or g1LagrangeBytes.len == 0 or g2MonomialBytes.len == 0:
     return err($KZG_BADARGS)
 
-  gCtx.settings = cast[ptr KzgSettings](alloc0(sizeof(KzgSettings)))
+  gCtx.settings = cast[ptr KzgSettings](runtimeAlloc(sizeof(KzgSettings)))
   let res = load_trusted_setup(gCtx.settings,
       g1MonomialBytes[0].getPtr,
       g1MonomialBytes.len.uint64,
@@ -112,7 +124,7 @@ proc loadTrustedSetup*(g1MonomialBytes: openArray[byte],
       g2MonomialBytes.len.uint64,
       precompute.uint64)
   if res != KZG_OK:
-    dealloc(gCtx.settings)
+    runtimeDealloc(gCtx.settings)
     gCtx.settings = nil
     return err($res)
   gCtx.initialized = true
@@ -184,7 +196,7 @@ proc freeTrustedSetup*(): Result[void, string] =
     return err(TrustedSetupNotLoadedErr)
   free_trusted_setup(gCtx.settings)
   gCtx.initialized = false
-  dealloc(gCtx.settings)
+  runtimeDealloc(gCtx.settings)
   gCtx.settings = nil
   return ok()
 
