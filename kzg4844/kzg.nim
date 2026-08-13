@@ -20,6 +20,10 @@ import
   results,
   ./kzg_abi
 
+when compileOption("threads"):
+  import
+    std/locks
+
 export
   results,
   kzg_abi.KzgBlob,
@@ -56,6 +60,10 @@ var gCtx: KzgCtx
 gCtx.initialized = false
 gCtx.settings = nil
 
+when compileOption("threads"):
+  var gLock: Lock
+  initLock(gLock)
+
 ##############################################################
 # Private helpers
 ##############################################################
@@ -80,20 +88,28 @@ template runtimeDealloc(ptrObj: auto) =
   else:
     dealloc(ptrObj)
 
+template lockSection(body: untyped) =
+  when compileOption("threads"):
+    withLock gLock:
+      body
+  else:
+    body
+
 ##############################################################
 # Public functions
 ##############################################################
 
 proc loadTrustedSetup*(input: File, precompute: Natural): Result[void, string] =
-  if gCtx.initialized:
-    return err(TrustedSetupAlreadyLoadedErr)
-  gCtx.settings = cast[ptr KzgSettings](runtimeAlloc(sizeof(KzgSettings)))
-  let res = load_trusted_setup_file(gCtx.settings, input, precompute.uint64)
-  if res != KZG_OK:
-    runtimeDealloc(gCtx.settings)
-    gCtx.settings = nil
-    return err($res)
-  gCtx.initialized = true
+  lockSection:
+    if gCtx.initialized:
+      return err(TrustedSetupAlreadyLoadedErr)
+    gCtx.settings = cast[ptr KzgSettings](runtimeAlloc(sizeof(KzgSettings)))
+    let res = load_trusted_setup_file(gCtx.settings, input, precompute.uint64)
+    if res != KZG_OK:
+      runtimeDealloc(gCtx.settings)
+      gCtx.settings = nil
+      return err($res)
+    gCtx.initialized = true
   return ok()
 
 proc loadTrustedSetup*(fileName: string, precompute: Natural): Result[void, string] =
@@ -109,25 +125,26 @@ proc loadTrustedSetup*(g1MonomialBytes: openArray[byte],
                        g2MonomialBytes: openArray[byte],
                        precompute: Natural):
                          Result[void, string] =
-  if gCtx.initialized:
-    return err(TrustedSetupAlreadyLoadedErr)
-  if g1MonomialBytes.len == 0 or g1LagrangeBytes.len == 0 or g2MonomialBytes.len == 0:
-    return err($KZG_BADARGS)
+  lockSection:
+    if gCtx.initialized:
+      return err(TrustedSetupAlreadyLoadedErr)
+    if g1MonomialBytes.len == 0 or g1LagrangeBytes.len == 0 or g2MonomialBytes.len == 0:
+      return err($KZG_BADARGS)
 
-  gCtx.settings = cast[ptr KzgSettings](runtimeAlloc(sizeof(KzgSettings)))
-  let res = load_trusted_setup(gCtx.settings,
-      g1MonomialBytes[0].getPtr,
-      g1MonomialBytes.len.uint64,
-      g1LagrangeBytes[0].getPtr,
-      g1LagrangeBytes.len.uint64,
-      g2MonomialBytes[0].getPtr,
-      g2MonomialBytes.len.uint64,
-      precompute.uint64)
-  if res != KZG_OK:
-    runtimeDealloc(gCtx.settings)
-    gCtx.settings = nil
-    return err($res)
-  gCtx.initialized = true
+    gCtx.settings = cast[ptr KzgSettings](runtimeAlloc(sizeof(KzgSettings)))
+    let res = load_trusted_setup(gCtx.settings,
+        g1MonomialBytes[0].getPtr,
+        g1MonomialBytes.len.uint64,
+        g1LagrangeBytes[0].getPtr,
+        g1LagrangeBytes.len.uint64,
+        g2MonomialBytes[0].getPtr,
+        g2MonomialBytes.len.uint64,
+        precompute.uint64)
+    if res != KZG_OK:
+      runtimeDealloc(gCtx.settings)
+      gCtx.settings = nil
+      return err($res)
+    gCtx.initialized = true
   return ok()
 
 const
@@ -192,12 +209,13 @@ proc lazyLoadTrustedSetup(): Result[void, string] =
   loadTrustedSetup(ts.g1MonomialBytes, ts.g1LagrangeBytes, ts.g2MonomialBytes, 0)
 
 proc freeTrustedSetup*(): Result[void, string] =
-  if not gCtx.initialized:
-    return err(TrustedSetupNotLoadedErr)
-  free_trusted_setup(gCtx.settings)
-  gCtx.initialized = false
-  runtimeDealloc(gCtx.settings)
-  gCtx.settings = nil
+  lockSection:
+    if not gCtx.initialized:
+      return err(TrustedSetupNotLoadedErr)
+    free_trusted_setup(gCtx.settings)
+    gCtx.initialized = false
+    runtimeDealloc(gCtx.settings)
+    gCtx.settings = nil
   return ok()
 
 proc blobToKzgCommitment*(blob: KzgBlob): Result[KzgCommitment, string] =
