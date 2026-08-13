@@ -22,7 +22,17 @@ import
 
 when compileOption("threads"):
   import
-    std/locks
+    std/[atomics, locks]
+else:
+  type
+    Atomic[T] = object
+      value: T
+
+  template store[T](x: var Atomic[T], val: T) =
+    x.value = val
+
+  template load[T](x: Atomic[T]): T =
+    x.value
 
 export
   results,
@@ -39,10 +49,6 @@ const
   TrustedSetupAlreadyLoadedErr = "Trusted setup is already loaded."
 
 type
-  KzgCtx = object
-    initialized: bool
-    settings: ptr KzgSettings
-
   KzgProofAndY* = object
     proof*: KzgProof
     y*: KzgBytes32
@@ -56,9 +62,11 @@ type
 # Global variables
 ##############################################################
 
-var gCtx: KzgCtx
-gCtx.initialized = false
-gCtx.settings = nil
+var 
+  gCtx: ptr KzgSettings = nil
+  gInitialized: Atomic[bool]
+  
+gInitialized.store(true)
 
 when compileOption("threads"):
   var gLock: Lock
@@ -88,7 +96,7 @@ template runtimeDealloc(ptrObj: auto) =
   else:
     dealloc(ptrObj)
 
-template lockSection(body: untyped) =
+template lockSection(body: untyped): auto =
   when compileOption("threads"):
     withLock gLock:
       body
@@ -101,15 +109,15 @@ template lockSection(body: untyped) =
 
 proc loadTrustedSetup*(input: File, precompute: Natural): Result[void, string] =
   lockSection:
-    if gCtx.initialized:
+    if gInitialized.load:
       return err(TrustedSetupAlreadyLoadedErr)
-    gCtx.settings = cast[ptr KzgSettings](runtimeAlloc(sizeof(KzgSettings)))
-    let res = load_trusted_setup_file(gCtx.settings, input, precompute.uint64)
+    gCtx = cast[ptr KzgSettings](runtimeAlloc(sizeof(KzgSettings)))
+    let res = load_trusted_setup_file(gCtx, input, precompute.uint64)
     if res != KZG_OK:
-      runtimeDealloc(gCtx.settings)
-      gCtx.settings = nil
+      runtimeDealloc(gCtx)
+      gCtx = nil
       return err($res)
-    gCtx.initialized = true
+    gInitialized.store(true)
   return ok()
 
 proc loadTrustedSetup*(fileName: string, precompute: Natural): Result[void, string] =
@@ -126,13 +134,13 @@ proc loadTrustedSetup*(g1MonomialBytes: openArray[byte],
                        precompute: Natural):
                          Result[void, string] =
   lockSection:
-    if gCtx.initialized:
+    if gInitialized.load:
       return err(TrustedSetupAlreadyLoadedErr)
     if g1MonomialBytes.len == 0 or g1LagrangeBytes.len == 0 or g2MonomialBytes.len == 0:
       return err($KZG_BADARGS)
 
-    gCtx.settings = cast[ptr KzgSettings](runtimeAlloc(sizeof(KzgSettings)))
-    let res = load_trusted_setup(gCtx.settings,
+    gCtx = cast[ptr KzgSettings](runtimeAlloc(sizeof(KzgSettings)))
+    let res = load_trusted_setup(gCtx,
         g1MonomialBytes[0].getPtr,
         g1MonomialBytes.len.uint64,
         g1LagrangeBytes[0].getPtr,
@@ -141,10 +149,10 @@ proc loadTrustedSetup*(g1MonomialBytes: openArray[byte],
         g2MonomialBytes.len.uint64,
         precompute.uint64)
     if res != KZG_OK:
-      runtimeDealloc(gCtx.settings)
-      gCtx.settings = nil
+      runtimeDealloc(gCtx)
+      gCtx = nil
       return err($res)
-    gCtx.initialized = true
+    gInitialized.store(true)
   return ok()
 
 const
@@ -210,24 +218,24 @@ proc lazyLoadTrustedSetup(): Result[void, string] =
 
 proc freeTrustedSetup*(): Result[void, string] =
   lockSection:
-    if not gCtx.initialized:
+    if not gInitialized.load:
       return err(TrustedSetupNotLoadedErr)
-    free_trusted_setup(gCtx.settings)
-    gCtx.initialized = false
-    runtimeDealloc(gCtx.settings)
-    gCtx.settings = nil
+    free_trusted_setup(gCtx)    
+    runtimeDealloc(gCtx)
+    gCtx = nil
+    gInitialized.store(false)
   return ok()
 
 proc blobToKzgCommitment*(blob: KzgBlob): Result[KzgCommitment, string] =
-  if not gCtx.initialized:
+  if not gInitialized.load:
     ?lazyLoadTrustedSetup()
   var ret: KzgCommitment
-  let res = blob_to_kzg_commitment(ret, blob.getPtr, gCtx.settings)
+  let res = blob_to_kzg_commitment(ret, blob.getPtr, gCtx)
   verify(res, ret)
 
 proc computeKzgProof*(blob: KzgBlob,
                    z: KzgBytes32): Result[KzgProofAndY, string] =
-  if not gCtx.initialized:
+  if not gInitialized.load:
     ?lazyLoadTrustedSetup()
   var ret: KzgProofAndY
   let res = compute_kzg_proof(
@@ -235,26 +243,26 @@ proc computeKzgProof*(blob: KzgBlob,
     ret.y,
     blob.getPtr,
     z.getPtr,
-    gCtx.settings)
+    gCtx)
   verify(res, ret)
 
 proc computeBlobKzgProof*(blob: KzgBlob,
                    commitmentBytes: KzgBytes48): Result[KzgProof, string] =
-  if not gCtx.initialized:
+  if not gInitialized.load:
     ?lazyLoadTrustedSetup()
   var proof: KzgProof
   let res = compute_blob_kzg_proof(
     proof,
     blob.getPtr,
     commitmentBytes.getPtr,
-    gCtx.settings)
+    gCtx)
   verify(res, proof)
 
 proc verifyKzgProof*(commitment: KzgBytes48,
                   z: KzgBytes32, # Input Point
                   y: KzgBytes32, # Claimed Value
                   proof: KzgBytes48): Result[bool, string] =
-  if not gCtx.initialized:
+  if not gInitialized.load:
     ?lazyLoadTrustedSetup()
   var valid: bool
   let res = verify_kzg_proof(
@@ -263,13 +271,13 @@ proc verifyKzgProof*(commitment: KzgBytes48,
     z.getPtr,
     y.getPtr,
     proof.getPtr,
-    gCtx.settings)
+    gCtx)
   verify(res, valid)
 
 proc verifyBlobKzgProof*(blob: KzgBlob,
                   commitment: KzgBytes48,
                   proof: KzgBytes48): Result[bool, string] =
-  if not gCtx.initialized:
+  if not gInitialized.load:
     ?lazyLoadTrustedSetup()
   var valid: bool
   let res = verify_blob_kzg_proof(
@@ -277,13 +285,13 @@ proc verifyBlobKzgProof*(blob: KzgBlob,
     blob.getPtr,
     commitment.getPtr,
     proof.getPtr,
-    gCtx.settings)
+    gCtx)
   verify(res, valid)
 
 proc verifyBlobKzgProofBatch*(blobs: openArray[KzgBlob],
                   commitments: openArray[KzgBytes48],
                   proofs: openArray[KzgBytes48]): Result[bool, string] =
-  if not gCtx.initialized:
+  if not gInitialized.load:
     ?lazyLoadTrustedSetup()
   if blobs.len != commitments.len:
     return err($KZG_BADARGS)
@@ -299,11 +307,11 @@ proc verifyBlobKzgProofBatch*(blobs: openArray[KzgBlob],
     commitments[0].getPtr,
     proofs[0].getPtr,
     blobs.len.uint64,
-    gCtx.settings)
+    gCtx)
   verify(res, valid)
 
 proc computeCells*(blob: KzgBlob): Result[KzgCells, string] =
-  if not gCtx.initialized:
+  if not gInitialized.load:
     ?lazyLoadTrustedSetup()
   var ret: KzgCells
   var cellsPtr: ptr KzgCell = ret[0].getPtr
@@ -311,11 +319,11 @@ proc computeCells*(blob: KzgBlob): Result[KzgCells, string] =
     cellsPtr,
     nil,
     blob.getPtr,
-    gCtx.settings)
+    gCtx)
   verify(res, ret)
 
 proc computeCellsAndKzgProofs*(blob: KzgBlob): Result[KzgCellsAndKzgProofs, string] =
-  if not gCtx.initialized:
+  if not gInitialized.load:
     ?lazyLoadTrustedSetup()
   var ret: KzgCellsAndKzgProofs
   var cellsPtr: ptr KzgCell = ret.cells[0].getPtr
@@ -324,12 +332,12 @@ proc computeCellsAndKzgProofs*(blob: KzgBlob): Result[KzgCellsAndKzgProofs, stri
     cellsPtr,
     proofsPtr,
     blob.getPtr,
-    gCtx.settings)
+    gCtx)
   verify(res, ret)
 
 proc recoverCellsAndKzgProofs*(cellIndices: openArray[uint64],
                    cells: openArray[KzgCell]): Result[KzgCellsAndKzgProofs, string] =
-  if not gCtx.initialized:
+  if not gInitialized.load:
     ?lazyLoadTrustedSetup()
   if cells.len != cellIndices.len:
     return err($KZG_BADARGS)
@@ -345,14 +353,14 @@ proc recoverCellsAndKzgProofs*(cellIndices: openArray[uint64],
     cellIndices[0].getPtr,
     cells[0].getPtr,
     cells.len.uint64,
-    gCtx.settings)
+    gCtx)
   verify(res, ret)
 
 proc verifyCellKzgProofBatch*(commitments: openArray[KzgBytes48],
                    cellIndices: openArray[uint64],
                    cells: openArray[KzgCell],
                    proofs: openArray[KzgBytes48]): Result[bool, string] =
-  if not gCtx.initialized:
+  if not gInitialized.load:
     ?lazyLoadTrustedSetup()
   if commitments.len != cells.len:
     return err($KZG_BADARGS)
@@ -371,7 +379,7 @@ proc verifyCellKzgProofBatch*(commitments: openArray[KzgBytes48],
     cells[0].getPtr,
     proofs[0].getPtr,
     cells.len.uint64,
-    gCtx.settings)
+    gCtx)
   verify(res, valid)
 
 {. pop .}
