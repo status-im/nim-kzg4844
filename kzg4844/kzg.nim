@@ -1,5 +1,5 @@
-# nimbus-execution-client
-# Copyright (c) 2023-2025 Status Research & Development GmbH
+# kzg-4844
+# Copyright (c) 2023-2026 Status Research & Development GmbH
 # Licensed under either of
 #  * Apache License, version 2.0, ([LICENSE-APACHE](LICENSE-APACHE))
 #  * MIT license ([LICENSE-MIT](LICENSE-MIT))
@@ -18,21 +18,8 @@ import
   std/[strutils],
   stew/[assign2, byteutils],
   results,
-  ./kzg_abi
-
-when compileOption("threads"):
-  import
-    std/[atomics, locks]
-else:
-  type
-    Atomic[T] = object
-      value: T
-
-  template store[T](x: var Atomic[T], val: T) =
-    x.value = val
-
-  template load[T](x: Atomic[T]): T =
-    x.value
+  ./kzg_abi,
+  ./sync_once
 
 export
   results,
@@ -44,10 +31,6 @@ export
   kzg_abi.KzgProof,
   kzg_abi.trustedSetup
 
-const
-  TrustedSetupNotLoadedErr = "Trusted setup is not loaded."
-  TrustedSetupAlreadyLoadedErr = "Trusted setup is already loaded."
-
 type
   KzgProofAndY* = object
     proof*: KzgProof
@@ -58,19 +41,14 @@ type
     cells*: array[CELLS_PER_EXT_BLOB, KzgCell]
     proofs*: array[CELLS_PER_EXT_BLOB, KzgProof]
 
+
 ##############################################################
 # Global variables
 ##############################################################
 
-var 
+var
   gCtx: ptr KzgSettings = nil
-  gInitialized: Atomic[bool]
-  
-gInitialized.store(true)
-
-when compileOption("threads"):
-  var gLock: Lock
-  initLock(gLock)
+  gInit = SyncOnce.init()
 
 ##############################################################
 # Private helpers
@@ -96,28 +74,18 @@ template runtimeDealloc(ptrObj: auto) =
   else:
     dealloc(ptrObj)
 
-template lockSection(body: untyped): auto =
-  when compileOption("threads"):
-    withLock gLock:
-      body
-  else:
-    body
-
 ##############################################################
 # Public functions
 ##############################################################
 
 proc loadTrustedSetup*(input: File, precompute: Natural): Result[void, string] =
-  lockSection:
-    if gInitialized.load:
-      return err(TrustedSetupAlreadyLoadedErr)
+  gInit.lockSection:
     gCtx = cast[ptr KzgSettings](runtimeAlloc(sizeof(KzgSettings)))
     let res = load_trusted_setup_file(gCtx, input, precompute.uint64)
     if res != KZG_OK:
       runtimeDealloc(gCtx)
       gCtx = nil
       return err($res)
-    gInitialized.store(true)
   return ok()
 
 proc loadTrustedSetup*(fileName: string, precompute: Natural): Result[void, string] =
@@ -133,9 +101,7 @@ proc loadTrustedSetup*(g1MonomialBytes: openArray[byte],
                        g2MonomialBytes: openArray[byte],
                        precompute: Natural):
                          Result[void, string] =
-  lockSection:
-    if gInitialized.load:
-      return err(TrustedSetupAlreadyLoadedErr)
+  gInit.lockSection:
     if g1MonomialBytes.len == 0 or g1LagrangeBytes.len == 0 or g2MonomialBytes.len == 0:
       return err($KZG_BADARGS)
 
@@ -152,7 +118,6 @@ proc loadTrustedSetup*(g1MonomialBytes: openArray[byte],
       runtimeDealloc(gCtx)
       gCtx = nil
       return err($res)
-    gInitialized.store(true)
   return ok()
 
 const
@@ -217,17 +182,14 @@ proc lazyLoadTrustedSetup(): Result[void, string] =
   loadTrustedSetup(ts.g1MonomialBytes, ts.g1LagrangeBytes, ts.g2MonomialBytes, 0)
 
 proc freeTrustedSetup*(): Result[void, string] =
-  lockSection:
-    if not gInitialized.load:
-      return err(TrustedSetupNotLoadedErr)
-    free_trusted_setup(gCtx)    
+  gInit.lockSection(true):
+    free_trusted_setup(gCtx)
     runtimeDealloc(gCtx)
     gCtx = nil
-    gInitialized.store(false)
   return ok()
 
 proc blobToKzgCommitment*(blob: KzgBlob): Result[KzgCommitment, string] =
-  if not gInitialized.load:
+  gInit.syncOnce:
     ?lazyLoadTrustedSetup()
   var ret: KzgCommitment
   let res = blob_to_kzg_commitment(ret, blob.getPtr, gCtx)
@@ -235,7 +197,7 @@ proc blobToKzgCommitment*(blob: KzgBlob): Result[KzgCommitment, string] =
 
 proc computeKzgProof*(blob: KzgBlob,
                    z: KzgBytes32): Result[KzgProofAndY, string] =
-  if not gInitialized.load:
+  gInit.syncOnce:
     ?lazyLoadTrustedSetup()
   var ret: KzgProofAndY
   let res = compute_kzg_proof(
@@ -248,7 +210,7 @@ proc computeKzgProof*(blob: KzgBlob,
 
 proc computeBlobKzgProof*(blob: KzgBlob,
                    commitmentBytes: KzgBytes48): Result[KzgProof, string] =
-  if not gInitialized.load:
+  gInit.syncOnce:
     ?lazyLoadTrustedSetup()
   var proof: KzgProof
   let res = compute_blob_kzg_proof(
@@ -262,7 +224,7 @@ proc verifyKzgProof*(commitment: KzgBytes48,
                   z: KzgBytes32, # Input Point
                   y: KzgBytes32, # Claimed Value
                   proof: KzgBytes48): Result[bool, string] =
-  if not gInitialized.load:
+  gInit.syncOnce:
     ?lazyLoadTrustedSetup()
   var valid: bool
   let res = verify_kzg_proof(
@@ -277,7 +239,7 @@ proc verifyKzgProof*(commitment: KzgBytes48,
 proc verifyBlobKzgProof*(blob: KzgBlob,
                   commitment: KzgBytes48,
                   proof: KzgBytes48): Result[bool, string] =
-  if not gInitialized.load:
+  gInit.syncOnce:
     ?lazyLoadTrustedSetup()
   var valid: bool
   let res = verify_blob_kzg_proof(
@@ -291,7 +253,7 @@ proc verifyBlobKzgProof*(blob: KzgBlob,
 proc verifyBlobKzgProofBatch*(blobs: openArray[KzgBlob],
                   commitments: openArray[KzgBytes48],
                   proofs: openArray[KzgBytes48]): Result[bool, string] =
-  if not gInitialized.load:
+  gInit.syncOnce:
     ?lazyLoadTrustedSetup()
   if blobs.len != commitments.len:
     return err($KZG_BADARGS)
@@ -311,7 +273,7 @@ proc verifyBlobKzgProofBatch*(blobs: openArray[KzgBlob],
   verify(res, valid)
 
 proc computeCells*(blob: KzgBlob): Result[KzgCells, string] =
-  if not gInitialized.load:
+  gInit.syncOnce:
     ?lazyLoadTrustedSetup()
   var ret: KzgCells
   var cellsPtr: ptr KzgCell = ret[0].getPtr
@@ -323,7 +285,7 @@ proc computeCells*(blob: KzgBlob): Result[KzgCells, string] =
   verify(res, ret)
 
 proc computeCellsAndKzgProofs*(blob: KzgBlob): Result[KzgCellsAndKzgProofs, string] =
-  if not gInitialized.load:
+  gInit.syncOnce:
     ?lazyLoadTrustedSetup()
   var ret: KzgCellsAndKzgProofs
   var cellsPtr: ptr KzgCell = ret.cells[0].getPtr
@@ -337,7 +299,7 @@ proc computeCellsAndKzgProofs*(blob: KzgBlob): Result[KzgCellsAndKzgProofs, stri
 
 proc recoverCellsAndKzgProofs*(cellIndices: openArray[uint64],
                    cells: openArray[KzgCell]): Result[KzgCellsAndKzgProofs, string] =
-  if not gInitialized.load:
+  gInit.syncOnce:
     ?lazyLoadTrustedSetup()
   if cells.len != cellIndices.len:
     return err($KZG_BADARGS)
@@ -360,7 +322,7 @@ proc verifyCellKzgProofBatch*(commitments: openArray[KzgBytes48],
                    cellIndices: openArray[uint64],
                    cells: openArray[KzgCell],
                    proofs: openArray[KzgBytes48]): Result[bool, string] =
-  if not gInitialized.load:
+  gInit.syncOnce:
     ?lazyLoadTrustedSetup()
   if commitments.len != cells.len:
     return err($KZG_BADARGS)
