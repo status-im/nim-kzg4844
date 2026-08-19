@@ -22,13 +22,13 @@ when compileOption("threads"):
     result.done.store(false)
     result.lock.initLock()
 
-  template lockSectionImpl(z: var SyncOnce, condition: static[bool], body: untyped): auto =
+  template lockSection*(z: var SyncOnce, condition: static[bool], body: untyped): auto =
     withLock z.lock:
       if z.done.load == condition:
         body
         z.done.store(not condition)
 
-  template syncOnceImpl(z: SyncOnce, condition: static[bool], body: untyped): auto =
+  template syncOnce*(z: SyncOnce, condition: static[bool], body: untyped): auto =
     if z.done.load == condition:
       body
 
@@ -42,23 +42,15 @@ else:
       done: false,
     )
 
-  template lockSectionImpl(z: var SyncOnce, condition: static[bool], body: untyped): auto =
+  template lockSection*(z: var SyncOnce, condition: static[bool], body: untyped): auto =
     body
 
-  template syncOnceImpl(z: SyncOnce, condition: static[bool], body: untyped): auto =
+  template syncOnce*(z: SyncOnce, condition: static[bool], body: untyped): auto =
     if z.done == condition:
       body
 
-# lockSectionImpl and syncOnceImpl is used as a workaround for
-# Nim 2.0 vmgen ICE
 template lockSection*(z: var SyncOnce, body: untyped): auto =
-  lockSectionImpl(z, false, body)
+  lockSection(z, false, body)
 
 template syncOnce*(z: SyncOnce, body: untyped): auto =
-  syncOnceImpl(z, false, body)
-
-template lockSection*(z: var SyncOnce, condition: static[bool], body: untyped): auto =
-  lockSectionImpl(z, condition, body)
-
-template syncOnce*(z: SyncOnce, condition: static[bool], body: untyped): auto =
-  syncOnceImpl(z, condition, body)
+  syncOnce(z, false, body)
