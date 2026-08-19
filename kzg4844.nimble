@@ -1,5 +1,5 @@
 # nim-kzg4844
-# Copyright (c) 2023-2025 Status Research & Development GmbH
+# Copyright (c) 2023-2026 Status Research & Development GmbH
 # Licensed under either of
 #  * Apache License, version 2.0, ([LICENSE-APACHE](LICENSE-APACHE))
 #  * MIT license ([LICENSE-MIT](LICENSE-MIT))
@@ -10,7 +10,7 @@
 mode = ScriptMode.Verbose
 
 packageName   = "kzg4844"
-version       = "0.2.0"
+version       = "0.2.2"
 author        = "Status Research & Development GmbH"
 description   = "c-kzg-4844 wrapper in Nim"
 license       = "Apache License 2.0"
