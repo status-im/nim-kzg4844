@@ -43,7 +43,9 @@ else:
     )
 
   template lockSection*(z: var SyncOnce, condition: static[bool], body: untyped): auto =
-    body
+    if z.done == condition:
+      body
+      z.done = not condition
 
   template syncOnce*(z: SyncOnce, condition: static[bool], body: untyped): auto =
     if z.done == condition:
