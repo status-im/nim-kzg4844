@@ -181,12 +181,11 @@ proc lazyLoadTrustedSetup(): Result[void, string] =
   const ts = parseTrustedSetup(kzg_abi.trustedSetup).expect("parseTrustedSetup no error")
   loadTrustedSetup(ts.g1MonomialBytes, ts.g1LagrangeBytes, ts.g2MonomialBytes, 0)
 
-proc freeTrustedSetup*(): Result[void, string] =
+proc freeTrustedSetup*() =
   gInit.lockSection(true):
     free_trusted_setup(gCtx)
     runtimeDealloc(gCtx)
     gCtx = nil
-  return ok()
 
 proc blobToKzgCommitment*(blob: KzgBlob): Result[KzgCommitment, string] =
   gInit.syncOnce:
