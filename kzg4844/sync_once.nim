@@ -56,3 +56,12 @@ template lockSection*(z: var SyncOnce, body: untyped): auto =
 
 template syncOnce*(z: SyncOnce, body: untyped): auto =
   syncOnce(z, false, body)
+
+proc `=copy`(
+    dest: var SyncOnce, src: SyncOnce
+) {.error: "Copying SyncOnce is forbidden".} =
+  # https://pubs.opengroup.org/onlinepubs/9699919799/functions/V2_chap02.html#tag_15_09_09 states that
+  # > The effect of referring to a copy of the object when locking, unlocking, or destroying it is undefined.
+  # So we forbid copying a SyncOnce because it contains a `Lock` object derived from pthreads mutex on Linux cs.
+  discard
+  
