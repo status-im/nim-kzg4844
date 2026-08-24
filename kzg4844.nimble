@@ -16,7 +16,7 @@ description   = "c-kzg-4844 wrapper in Nim"
 license       = "Apache License 2.0"
 skipDirs      = @["tests"]
 
-requires "nim >= 2.0.0"
+requires "nim >= 2.2.10"
 requires "stew >= 0.1.0"
 requires "unittest2"
 
