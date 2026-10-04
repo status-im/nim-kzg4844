@@ -16,7 +16,7 @@
 
 import
   std/[strutils],
-  stew/[assign2, byteutils],
+  stew/byteutils,
   results,
   ./kzg_abi
 
@@ -145,7 +145,6 @@ type
 proc parseTrustedSetup(input: string): Result[TrustedSetup, string] =
   var
     s = splitLines(input)
-    ts: TrustedSetup
     pos = 0
 
   template nextLine(): string =
@@ -153,6 +152,15 @@ proc parseTrustedSetup(input: string): Result[TrustedSetup, string] =
       return err("Trusted setup incomplete")
     pos += 1
     s[pos - 1]
+
+  func nextPoints[N, L: static int](
+      lines: openArray[string], pos: var int): array[N * L, byte] {.
+      noinit, raises: [ValueError].} =
+    if lines.len - pos < N:
+      raise (ref ValueError)(msg: "Trusted setup incomplete")
+    for i in 0 ..< N:
+      hexToByteArray(lines[pos], result.toOpenArray(i * L, ((i + 1) * L) - 1))
+      pos += 1
 
   try:
     let numG1 = nextLine().parseInt()
@@ -166,26 +174,18 @@ proc parseTrustedSetup(input: string): Result[TrustedSetup, string] =
         $NumG2, $numG2
       ])
 
-    for i in 0 ..< NumG1:
-      let p = hexToByteArray[G1Len](nextLine())
-      assign(ts.g1LagrangeBytes.toOpenArray(i * G1Len, ((i + 1) * G1Len) - 1), p)
-
-    for i in 0 ..< NumG2:
-      let p = hexToByteArray[G2Len](nextLine())
-      assign(ts.g2MonomialBytes.toOpenArray(i * G2Len, ((i + 1) * G2Len) - 1), p)
-
-    for i in 0 ..< NumG1:
-      let p = hexToByteArray[G1Len](nextLine())
-      assign(ts.g1MonomialBytes.toOpenArray(i * G1Len, ((i + 1) * G1Len) - 1), p)
-
+    ok TrustedSetup(
+      g1LagrangeBytes: nextPoints[NumG1, G1Len](s, pos),
+      g2MonomialBytes: nextPoints[NumG2, G2Len](s, pos),
+      g1MonomialBytes: nextPoints[NumG1, G1Len](s, pos))
   except ValueError as ex:
-    return err(ex.msg)
-
-  ok(ts)
+    err(ex.msg)
 
 proc loadTrustedSetupFromString*(input: string, precompute: Natural): Result[void, string] =
-  let ts = ?parseTrustedSetup(input)
-  loadTrustedSetup(ts.g1MonomialBytes, ts.g1LagrangeBytes, ts.g2MonomialBytes, precompute)
+  let error = parseTrustedSetup(input).errorOr:
+    return loadTrustedSetup(
+      value.g1MonomialBytes, value.g1LagrangeBytes, value.g2MonomialBytes, precompute)
+  err(error)
 
 proc lazyLoadTrustedSetup(): Result[void, string] =
   const ts = parseTrustedSetup(kzg_abi.trustedSetup).expect("parseTrustedSetup no error")
