@@ -19,7 +19,7 @@ skipDirs      = @["tests"]
 requires "nim >= 2.0.0",
          "results",
          "stew >= 0.1.0",
-         "unittest2"
+         "unittest2 >= 0.3.0"
 
 let nimc = getEnv("NIMC", "nim") # Which nim compiler to use
 let lang = getEnv("NIMLANG", "c") # Which backend (c/cpp/js)
@@ -57,12 +57,7 @@ task test, "Run all tests":
       build threads & " " & args & " --mm:orc" & externalBlst, "tests/test_all"
 
 task test_asan, "Run all tests with ASAN":
-  if platform != "x86" and (NimMajor, NimMinor) >= (2, 2):
-    try:
-      exec "echo '#if __clang_major__ < 20\n#error\n#endif' | clang -E - >/dev/null"
-    except OSError:
-      return
-
+  if platform != "x86":
     # https://clang.llvm.org/docs/AddressSanitizer.html
     putEnv("ASAN_OPTIONS", "detect_leaks=0:detect_stack_use_after_return=1")
     # https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html
